@@ -567,6 +567,7 @@ fn touch_marker(path: &PathBuf) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shimforge::{Session, mock};
 
     fn stat(
         slug: &str,
@@ -626,8 +627,24 @@ mod tests {
         assert_eq!(keys, ["elisions", "filter", "mode", "recalls"]);
     }
 
+    /// Points `salt_file_path()` at a temp dir for this test's thread, so the
+    /// salt never reaches the user's real data dir. Every salt test installs
+    /// this, because `CACHED_SALT` is a process-wide `OnceLock` and whichever
+    /// test runs first is the one that writes the file.
+    fn data_local_dir_in(session: &mut Session, dir: &tempfile::TempDir) {
+        let path = dir.path().to_path_buf();
+        let data_local_dir = mock!(session, dirs::data_local_dir, fn() -> Option<PathBuf>);
+        data_local_dir
+            .expect()
+            .returning(move || Some(path.clone()));
+    }
+
     #[test]
     fn test_device_hash_is_stable() {
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let mut shim = Session::new();
+        data_local_dir_in(&mut shim, &data_dir);
+
         let h1 = generate_device_hash();
         let h2 = generate_device_hash();
         assert_eq!(h1, h2);
@@ -636,12 +653,20 @@ mod tests {
 
     #[test]
     fn test_device_hash_is_valid_hex() {
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let mut shim = Session::new();
+        data_local_dir_in(&mut shim, &data_dir);
+
         let hash = generate_device_hash();
         assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
     fn test_salt_is_persisted() {
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let mut shim = Session::new();
+        data_local_dir_in(&mut shim, &data_dir);
+
         let s1 = get_or_create_salt();
         let s2 = get_or_create_salt();
         assert_eq!(s1, s2);

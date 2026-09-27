@@ -1,0 +1,38 @@
+name: shimforge salt isolation
+
+on:
+  push:
+    branches: [test/shimforge-salt-isolation]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: The data dir has no salt yet
+        run: test ! -e "$HOME/.local/share/rtk/.device_salt"
+
+      - name: Before - upstream telemetry tests write a real salt
+        run: |
+          git checkout 45b0b4c -- src/core/telemetry.rs
+          cargo test --bins telemetry
+          ls -l "$HOME/.local/share/rtk/.device_salt"
+
+      - name: Remove the leaked salt
+        run: rm -f "$HOME/.local/share/rtk/.device_salt"
+
+      - name: After - mocked tests keep the salt in a temp dir
+        run: |
+          git checkout test/shimforge-salt-isolation -- src/core/telemetry.rs
+          cargo test --bins telemetry
+
+      - name: The data dir still has no salt
+        run: |
+          test ! -e "$HOME/.local/share/rtk/.device_salt"
+          echo "no salt in the user data dir"

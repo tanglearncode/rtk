@@ -55,6 +55,7 @@ windows-sys = { version = "0.59", features = [
 toml = "0.8"
 
 [dev-dependencies]
+shimforge = "0.1.3"
 # Safe, closure-scoped env mutation for tests. std::env::set_var is unsafe
 # in edition 2024 and has no safe std replacement; temp-env restores the
 # previous value on completion or panic and serializes callers internally.
